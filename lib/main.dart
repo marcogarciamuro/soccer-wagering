@@ -12,6 +12,7 @@ import "package:tuple/tuple.dart";
 import "package:http/http.dart" as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert' as convert;
+import 'package:intl/intl.dart';
 
 final FirebaseAuth _auth = FirebaseAuth.instance;
 FirebaseApp wageringApp = Firebase.app('Fantasy Soccer Wagering');
@@ -439,78 +440,61 @@ class NewWager extends StatefulWidget {
   State<NewWager> createState() => _NewWagerState();
 }
 
-class _NewWagerState extends State<NewWager> {
+class SoccerMatch extends StatefulWidget {
+  // const HomePage({Key? key, required this.title}) : super(key: key);
+  // final String title;
+  // @override
+  // State<HomePage> createState() => _HomePageState();
+  const SoccerMatch(
+      {Key? key,
+      required this.storage,
+      required this.matchID,
+      required this.matchHomeTeamName,
+      required this.matchAwayTeamName,
+      required this.matchDateObj,
+      required this.matchDateString})
+      : super(key: key);
+  final matchID;
+  final storage;
+  final matchHomeTeamName;
+  final matchAwayTeamName;
+  final matchDateString;
+  final matchDateObj;
+
+  State<SoccerMatch> createState() => _SoccerMatchState();
+}
+
+late Future<int> _userBalance;
+
+enum ChosenTeam { home, away }
+
+class _SoccerMatchState extends State<SoccerMatch> {
   late bool _validWager;
-  late Future<int> _userBalance;
+  final _formKey = GlobalKey<FormState>();
   String team = "Real Madrid";
   final _amountController = TextEditingController();
+  ChosenTeam? _team = ChosenTeam.home;
 
-  final _formKey = GlobalKey<FormState>();
-  String apiKey = const String.fromEnvironment("API_KEY", defaultValue: "123");
-  Future getGames() async {
-    var headers = {
-      "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
-      "X-RapidAPI-Key": apiKey
-    };
-    var endpoint = "/v3/fixtures?date=2022-04-30&league=39&season=2021";
-    var request = http.Request(
-        'GET', Uri.parse('https://api-football-v1.p.rapidapi.com/$endpoint'));
-    request.headers.addAll(headers);
-    http.StreamedResponse streamedResponse = await request.send();
-    var response = await http.Response.fromStream(streamedResponse);
-
-    // var request = await http.get(url, headers: {
-    if (response.statusCode == 200) {
-      final jsonResponse =
-          convert.jsonDecode(response.body) as Map<String, dynamic>;
-      final games = jsonResponse['response'];
-      return games;
-      // for (var game in games) {
-      //   print(game['teams']['home']['name'] +
-      //       ' vs. ' +
-      //       game['teams']['away']['name']);
-      // }
-      // print(jsonResponse['response']);
-      // var jsonResponse = await response.stream.print(jsonResponse);
-    } else {
-      print("Request failed with status: ${response.statusCode}.");
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    if (_userSignedIn) {
-      User? user = _auth.currentUser;
-      final userID = user!.uid;
-      _userBalance = widget.storage.getUserBalance(userID);
-    }
-  }
-
-  void _processWager() async {
+  void _saveWager(Wager wager, Match match) async {
+    User? user = _auth.currentUser;
+    final userID = user!.uid;
     print("PROCESSING WAGER");
-    final int amount = int.parse(_amountController.text);
-    if (_formKey.currentState!.validate()) {
-      User? user = _auth.currentUser;
-      final userID = user!.uid;
-      if (amount > await widget.storage.getUserBalance(userID)) {
-        _validWager = false;
-        print("NOT ENOUGH TOKENS");
-      } else {
-        print("WAGER IS VALID");
-        widget.storage.saveWager(userID, team, amount);
-        _simulateMatch(userID, team, amount);
-        setState(() {
-          _userBalance = widget.storage.getUserBalance(userID);
-        });
-      }
-    } else {
-      print("INVALID INPUT");
-      _validWager = false;
-    }
+    // save game details
+    await widget.storage.saveGame(match);
+    // if (wager.betAmount! > await widget.storage.getUserBalance(userID)) {
+    //   _validWager = false;
+    //   print("NOT ENOUGH TOKENS");
+    // } else {
+    print("WAGER IS VALID");
+    widget.storage.saveWager(wager);
+    _simulateMatch(userID, team, wager.betAmount);
+    setState(() {
+      _userBalance = widget.storage.getUserBalance(userID);
+    });
+    // }
   }
 
-  void _simulateMatch(String userID, String userTeam, int amount) {
+  void _simulateMatch(String userID, String userTeam, int? amount) {
     final _teams = [
       "Real Madrid",
       "Manchester United",
@@ -530,12 +514,185 @@ class _NewWagerState extends State<NewWager> {
     print("USER ODDS: $_userOdds");
     print("OPPONENT ODDS: $_opponentOdds");
     if (_opponentOdds > _userOdds) {
-      amount *= -1;
       print("YOU LOST :(");
     } else {
       print("YOU WON :)");
     }
     widget.storage.updateUserBalance(userID, amount);
+  }
+
+  void initState() {
+    super.initState();
+    if (_userSignedIn) {
+      User? user = _auth.currentUser;
+      final userID = user!.uid;
+      _userBalance = widget.storage.getUserBalance(userID);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(title: const Text('Match Details')),
+        body: Center(
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+              Text("Home       Away"),
+              Text(
+                  "${widget.matchHomeTeamName} vs. ${widget.matchAwayTeamName}"),
+              Text("${widget.matchDateString}"),
+              Text("${widget.matchID}"),
+              ListTile(
+                title: Text("${widget.matchHomeTeamName}"),
+                leading: Radio<ChosenTeam>(
+                  value: ChosenTeam.home,
+                  groupValue: _team,
+                  onChanged: (ChosenTeam? value) {
+                    setState(() {
+                      _team = value;
+                    });
+                  },
+                ),
+              ),
+              ListTile(
+                title: Text("${widget.matchAwayTeamName}"),
+                leading: Radio<ChosenTeam>(
+                  value: ChosenTeam.away,
+                  groupValue: _team,
+                  onChanged: (ChosenTeam? value) {
+                    setState(() {
+                      _team = value;
+                    });
+                  },
+                ),
+              ),
+              SizedBox(
+                child: TextFormField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Amount',
+                      icon: Icon(Icons.attach_money_sharp)),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) {
+                    if (value!.isEmpty) {
+                      return 'Please enter a token amount';
+                    } else {
+                      print("ALL GOOD");
+                    }
+                    return null;
+                  },
+                ),
+                width: 500.0,
+              ),
+              ElevatedButton(
+                  //   if (_team == ChosenTeam.home) {
+
+                  //     print("${widget.matchHomeTeamName}");
+                  //     print(_amountController.text);
+                  //   } else {
+                  //     print("${widget.matchAwayTeamName}");
+                  //     print(_amountController.text);
+                  //   }
+                  // },
+                  onPressed: () async {
+                    late String selectedTeamName;
+                    if (_team == ChosenTeam.home) {
+                      selectedTeamName = widget.matchHomeTeamName;
+                    } else
+                      selectedTeamName = widget.matchAwayTeamName;
+                    String homeTeamName = widget.matchHomeTeamName;
+                    String awayTeamName = widget.matchAwayTeamName;
+                    int matchID = widget.matchID;
+                    String matchDateString = widget.matchDateString;
+                    DateTime matchDateObj = widget.matchDateObj;
+                    final int amount = int.parse(_amountController.text);
+                    User? user = _auth.currentUser;
+                    final userID = user!.uid;
+                    Match matchObj = Match(matchID, homeTeamName, awayTeamName,
+                        matchDateString, matchDateObj);
+                    Wager wagerObj =
+                        Wager(amount, userID, selectedTeamName, matchID);
+                    _saveWager(wagerObj, matchObj);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                NewWager(storage: ProfileStorage())));
+                  },
+                  child: Text("Place Wager"))
+            ])));
+  }
+}
+
+class _NewWagerState extends State<NewWager> {
+  String apiKey = const String.fromEnvironment("API_KEY", defaultValue: "123");
+  Future getGames() async {
+    var headers = {
+      "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+      "X-RapidAPI-Key": apiKey
+    };
+    final leagues = {
+      "Premier League": 39,
+      "La Liga": 140,
+      "Serie A": 135,
+      "Bundesliga": 78,
+      "Ligue 1": 61,
+    };
+
+    final allLeagueGames = [];
+
+    // for(int leagueID in leagues.values)
+    // var endpoint = "/v3/fixtures?date=2022-04-30&league=$leagueID&season=2021";
+    // allLeagueGames[]
+
+    DateTime now = DateTime.now();
+    DateTime datetime = DateTime(now.year, now.month, now.day);
+    String curDate = datetime.toString().replaceAll(" 00:00:00.000", "");
+    DateTime inOneWeekDateTime = datetime.add(const Duration(days: 7));
+    String inOneWeekDate =
+        inOneWeekDateTime.toString().replaceAll(" 00:00:00.000", "");
+
+    var endpoint =
+        "/v3/fixtures?league=39&season=2021&from=$curDate&to=$inOneWeekDate";
+    var request = http.Request(
+        'GET', Uri.parse('https://api-football-v1.p.rapidapi.com/$endpoint'));
+    request.headers.addAll(headers);
+    http.StreamedResponse streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final jsonResponse =
+          convert.jsonDecode(response.body) as Map<String, dynamic>;
+      final games = jsonResponse['response'];
+      var gamesCleaned = [];
+      for (var game in games) {
+        var rawGameDate = game['fixture']['date'];
+        DateTime gameDateObj = DateTime.parse(rawGameDate);
+        DateTime localGameDateObj = gameDateObj.toLocal();
+        String localGameDateStringFormatted =
+            DateFormat('MMMM d, hh:mm a').format(localGameDateObj);
+        game['fixture']['dateString'] = localGameDateStringFormatted;
+        if (game['fixture']['status']['long'] == "Not Started") {
+          game['fixture']['dateObj'] = localGameDateObj;
+          gamesCleaned.add(game);
+        }
+      }
+      return gamesCleaned;
+    } else {
+      print("Request failed with status: ${response.statusCode}.");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_userSignedIn) {
+      User? user = _auth.currentUser;
+      final userID = user!.uid;
+      _userBalance = widget.storage.getUserBalance(userID);
+    }
   }
 
   String? textValidator(value) {
@@ -546,7 +703,12 @@ class _NewWagerState extends State<NewWager> {
     return null;
   }
 
-  String dropdownValue = 'Real Madrid';
+  int _selectedMatchID = 0;
+  String _selectedMatchHomeTeamName = "";
+  String _selectedMatchAwayTeamName = "";
+  String _selectedMatchDate = "";
+
+  String dropdownValue = 'Premier League';
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -561,23 +723,56 @@ class _NewWagerState extends State<NewWager> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      FutureBuilder<int>(
-                          future: _userBalance,
-                          builder: (BuildContext context,
-                              AsyncSnapshot<int> snapshot) {
-                            switch (snapshot.connectionState) {
-                              case ConnectionState.waiting:
-                                return const CircularProgressIndicator();
-                              default:
-                                if (snapshot.hasError) {
-                                  return Text('Error: ${snapshot.error}');
-                                } else {
-                                  return Text('BALANCE: ${snapshot.data}');
-                                }
-                            }
-                          }),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FutureBuilder<int>(
+                            future: _userBalance,
+                            builder: (BuildContext context,
+                                AsyncSnapshot<int> snapshot) {
+                              switch (snapshot.connectionState) {
+                                case ConnectionState.waiting:
+                                  return const CircularProgressIndicator();
+                                default:
+                                  if (snapshot.hasError) {
+                                    return Text('Error: ${snapshot.error}');
+                                  } else {
+                                    return Text(
+                                      'Balance: ${snapshot.data}',
+                                      style: TextStyle(fontSize: 20),
+                                    );
+                                  }
+                              }
+                            }),
+                      ),
+                      Align(
+                          alignment: Alignment.topRight,
+                          child: DropdownButton<String>(
+                            value: dropdownValue,
+                            icon: const Icon(Icons.keyboard_arrow_down_sharp),
+                            elevation: 16,
+                            underline: Container(
+                                height: 2, color: Colors.deepPurpleAccent),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                dropdownValue = newValue!;
+                              });
+                            },
+                            items: <String>[
+                              'Premier League',
+                              'La Liga',
+                              'Serie A',
+                              'Bundesliga',
+                              'Ligue 1'
+                            ].map<DropdownMenuItem<String>>((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                          )),
                       FutureBuilder<dynamic>(
                           future: getGames(),
+                          // if(dropdownValue == "Ligue 1") ... return getGames(),
                           builder:
                               (BuildContext context, AsyncSnapshot snapshot) {
                             switch (snapshot.connectionState) {
@@ -592,117 +787,57 @@ class _NewWagerState extends State<NewWager> {
                                           itemCount: snapshot.data.length,
                                           itemBuilder: (context, index) {
                                             return Row(children: <Widget>[
-                                              ElevatedButton(
-                                                  onPressed: () {},
-                                                  child: Text(snapshot
-                                                          .data[index]['teams']
-                                                      ['home']['name'])),
-                                              Text("Vs."),
-                                              ElevatedButton(
-                                                  onPressed: () {},
-                                                  child: Text(snapshot
-                                                          .data[index]['teams']
-                                                      ['away']['name'])),
+                                              Expanded(
+                                                  child: Card(
+                                                      child: Column(
+                                                children: [
+                                                  ListTile(
+                                                    title: Text(
+                                                        "${snapshot.data[index]['teams']['home']['name']} vs ${snapshot.data[index]['teams']['away']['name']}"),
+                                                    subtitle: Text(
+                                                        "${snapshot.data[index]['fixture']['dateString']}"),
+                                                    trailing: ElevatedButton(
+                                                        onPressed: () {
+                                                          // _selectedMatchAwayTeamName =
+                                                          //     snapshot.data[
+                                                          //                 index]
+                                                          //             ['teams'][
+                                                          //         'away']['name'];
+                                                          // _selectedMatchHomeTeamName =
+                                                          //     snapshot.data[
+                                                          //                 index]
+                                                          //             ['teams'][
+                                                          //         'away']['name'];
+                                                          Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(
+                                                                  builder:
+                                                                      (context) =>
+                                                                          SoccerMatch(
+                                                                            storage:
+                                                                                ProfileStorage(),
+                                                                            matchID:
+                                                                                snapshot.data[index]['fixture']['id'],
+                                                                            matchHomeTeamName:
+                                                                                snapshot.data[index]['teams']['home']['name'],
+                                                                            matchAwayTeamName:
+                                                                                snapshot.data[index]['teams']['away']['name'],
+                                                                            matchDateString:
+                                                                                snapshot.data[index]['fixture']['dateString'],
+                                                                            matchDateObj:
+                                                                                snapshot.data[index]['fixture']['dateObj'],
+                                                                          )));
+                                                        },
+                                                        child: const Text(
+                                                            "Bet on Match")),
+                                                  ),
+                                                ],
+                                              )))
                                             ]);
                                           }));
                                 }
                             }
                           })
-                      // Form(
-                      //   key: _formKey,
-                      //   child: Column(
-                      //     children: <Widget>[
-                      //       DropdownButtonFormField<String>(
-                      //         decoration: const InputDecoration(
-                      //             labelText: 'Team',
-                      //             icon: Icon(Icons.groups_sharp)),
-                      //         value: dropdownValue,
-                      //         icon: const Icon(Icons.keyboard_arrow_down_sharp),
-                      //         elevation: 16,
-                      //         onChanged: (String? newValue) {
-                      //           setState(() {
-                      //             team = newValue!;
-                      //             dropdownValue = newValue;
-                      //           });
-                      //         },
-                      //         items: <String>[
-                      //           'Real Madrid',
-                      //           'Manchester United',
-                      //           'Borussia Dortmund',
-                      //           'Juventus'
-                      //         ].map<DropdownMenuItem<String>>((String value) {
-                      //           return DropdownMenuItem<String>(
-                      //             value: value,
-                      //             child: Text(value),
-                      //           );
-                      //         }).toList(),
-                      //       ),
-                      //       SizedBox(
-                      //         child: TextFormField(
-                      //           controller: _amountController,
-                      //           keyboardType: TextInputType.number,
-                      //           decoration: const InputDecoration(
-                      //               labelText: 'Amount',
-                      //               icon: Icon(Icons.attach_money_sharp)),
-                      //           inputFormatters: [
-                      //             FilteringTextInputFormatter.digitsOnly
-                      //           ],
-                      //           validator: (value) {
-                      //             if (value!.isEmpty) {
-                      //               return 'Please enter a token amount';
-                      //             } else {
-                      //               print("ALL GOOD");
-                      //             }
-                      //             return null;
-                      //           },
-                      //         ),
-                      //         width: 500.0,
-                      //       ),
-                      //       ElevatedButton(
-                      //         onPressed: () async {
-                      //           if (_formKey.currentState!.validate()) {
-                      //             _processWager();
-                      //           }
-                      //         },
-                      //         // ElevatedButton(
-                      //         //     onPressed: () async {
-                      //         //       if (_formKey.currentState!.validate()) {
-                      //         //         _register();
-                      //         //       }
-                      //         //     },
-                      //         //     child: const Text('Submit'),
-                      //         //   ),
-                      //         child: const Text('Submit'),
-                      //       ),
-                      //       // _validWager == true
-                      //       //     ? const Text("NOT ENOUGH TOKENS")
-                      //       //     : const Text("VALID"),
-
-                      //       // if(_validWager == true) {
-                      //       //   Text: ("NOT ENOUGH TOKENS");
-                      //       // },
-                      //     ],
-                      //   ),
-                      // ),
-                      // Form(
-                      //     key: _formKey,
-                      //     child: Column(
-                      //       children: <Widget>[
-                      //         // Add TextFormFields and ElevatedButton here.
-                      //         Container(
-                      //           child: TextFormField(
-                      //             controller: _amountController,
-                      //             // The validator receives the text that the user has entered.
-                      //             validator: textValidator,
-                      //           ),
-                      //           width: 500.0,
-                      //         ),
-                      //         ElevatedButton(
-                      //           onPressed: _processWager,
-                      //           child: const Text('Submit'),
-                      //         ),
-                      //       ],
-                      //     )),
                     ],
                   ),
                 ));

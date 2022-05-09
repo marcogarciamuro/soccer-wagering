@@ -6,6 +6,25 @@ import 'package:soccer_wagering/firebase_config.dart';
 import 'package:soccer_wagering/main.dart';
 import 'package:tuple/tuple.dart';
 
+class Match {
+  int? id;
+  String? homeTeamName;
+  String? awayTeamName;
+  String? dateTimeString;
+  DateTime? dateTimeObj;
+  String? winningTeam;
+  Match(this.id, this.homeTeamName, this.awayTeamName, this.dateTimeString,
+      this.dateTimeObj);
+}
+
+class Wager {
+  int? betAmount;
+  String? userID;
+  String? predictedWinner;
+  int? matchID;
+  Wager(this.betAmount, this.userID, this.predictedWinner, this.matchID);
+}
+
 class ProfileStorage {
   bool _initialized = false;
 
@@ -34,22 +53,44 @@ class ProfileStorage {
     return true;
   }
 
-  // Future<bool> saveWager(Wager wager)
-  Future<bool> saveWager(String userID, String team, int amount) async {
-    print("In save wager");
-    print(team);
-    print(amount);
+  Future<bool> saveGame(Match match) async {
     if (!_initialized) {
       await initializeDefault();
     }
     FirebaseFirestore firestore = FirebaseFirestore.instance;
     firestore
+        .collection('games')
+        .doc(match.id.toString())
+        .set({
+          'homeTeam': match.homeTeamName,
+          'awayTeam': match.awayTeamName,
+          'id': match.id,
+          'dateTimeString': match.dateTimeString,
+          'dateTimeObj': match.dateTimeObj,
+          'winner': ""
+        })
+        .then((value) => print("Game created"))
+        .catchError((error) => print("Failed to create game"));
+    return true;
+  }
+
+  // Future<bool> saveWager(Wager wager)
+  Future<bool> saveWager(Wager wager) async {
+    print("In save wager");
+    if (!_initialized) {
+      await initializeDefault();
+    }
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    final gameDocRef =
+        firestore.collection('games').doc(wager.matchID.toString());
+    firestore
         .collection('profiles')
-        .doc(userID)
+        .doc(wager.userID)
         .collection('wagers')
         .add({
-          'team': team,
-          'amount': amount,
+          'predictedWinner': wager.predictedWinner,
+          'game': gameDocRef,
+          'amount': wager.betAmount,
         })
         .then((value) => print("Wager Saved"))
         .catchError((error) => print("Failed to update count: $error"));
@@ -65,7 +106,7 @@ class ProfileStorage {
     FirebaseFirestore firestore = FirebaseFirestore.instance;
     DocumentReference userDoc = firestore.collection('profiles').doc(userID);
     userDoc
-        .update({'tokens': FieldValue.increment(amount)})
+        .update({'tokens': FieldValue.increment(-amount)})
         .then((value) => print("Tokens updated"))
         .catchError((error) => print("Failed to update tokens: $error"));
     print("AFTER");
