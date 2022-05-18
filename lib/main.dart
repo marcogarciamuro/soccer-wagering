@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -13,11 +14,11 @@ import "package:http/http.dart" as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert' as convert;
 import 'package:intl/intl.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
 
 final FirebaseAuth _auth = FirebaseAuth.instance;
 FirebaseApp wageringApp = Firebase.app('Fantasy Soccer Wagering');
 late bool _userSignedIn;
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -46,7 +47,10 @@ class SoccerWagering extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const HomePage(title: "Home Page"),
+      home: const HomePage(
+        title: "Home Page",
+        widgetIndex: 0,
+      ),
       initialRoute: '/',
       routes: {
         '/sign-up': (context) => SignUp(storage: ProfileStorage()),
@@ -61,23 +65,46 @@ class SoccerWagering extends StatelessWidget {
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key, required this.title}) : super(key: key);
+  const HomePage({Key? key, required this.title, required this.widgetIndex})
+      : super(key: key);
   final String title;
+  final int widgetIndex;
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
-  // static const TextStyle optionStyle =
-  //     TextStyle(fontSize: 30, fontWeight: FontWeight.bold);
-  final List<Widget> _widgetTabs = <Widget>[
-    Text("Home Page"),
-    NewWager(storage: ProfileStorage()),
-    Leaderboards(storage: ProfileStorage()),
-    AccountPage(storage: ProfileStorage()),
-  ];
+int _selectedIndex = 0;
+final List<Widget> _widgetTabs = <Widget>[
+  Scaffold(
+    body: Center(
+      child: Container(
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const <Widget>[
+                Align(
+                  alignment: Alignment.center,
+                  child: Text("Fantasy Soccer Wagering",
+                      style:
+                          TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+                ),
+                SizedBox(height: 10),
+                Text(
+                    "Place wagers on simulated upcoming soccer games, and increase your token balance.",
+                    style: TextStyle(fontSize: 20)),
+              ]),
+          decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.purple, Colors.white]))),
+    ),
+  ),
+  NewWager(storage: ProfileStorage()),
+  Leaderboards(storage: ProfileStorage()),
+  AccountPage(storage: ProfileStorage()),
+];
 
+class _HomePageState extends State<HomePage> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -114,58 +141,6 @@ class _HomePageState extends State<HomePage> {
         selectedItemColor: Colors.purple,
         onTap: _onItemTapped,
       ),
-      // drawer: Drawer(
-      //   child: ListView(
-      //     padding: EdgeInsets.zero,
-      //     children: [
-      //       const DrawerHeader(
-      //         decoration: BoxDecoration(
-      //           color: Colors.blue,
-      //         ),
-      //         child: Text('Drawer Header'),
-      //       ),
-      //       // _userSignedIn
-      //       //     ? ListTile(
-      //       //         title: const Text('Log Out'),
-      //       //         onTap: () async {
-      //       //           _userSignedIn = false;
-      //       //           await FirebaseAuth.instance.signOut();
-      //       //           // Navigator.pushNamed(context, '/logout');
-      //       //         },
-      //       //       )
-      //       //     : ListTile(
-      //       //         title: const Text('Log In'),
-      //       //         onTap: () {
-      //       //           Navigator.pushNamed(context, '/sign-up');
-      //       //         },
-      //       //       ),
-      //       ListTile(
-      //         title: const Text('Log In'),
-      //         onTap: () {
-      //           Navigator.pushNamed(context, '/login');
-      //         },
-      //       ),
-      //       ListTile(
-      //         title: const Text('Sign Up'),
-      //         onTap: () {
-      //           Navigator.pushNamed(context, '/sign-up');
-      //         },
-      //       ),
-      //       ListTile(
-      //         title: const Text('New Wager'),
-      //         onTap: () {
-      //           Navigator.pushNamed(context, '/new-wager');
-      //         },
-      //       ),
-      //       ListTile(
-      //         title: const Text('Leaderboards'),
-      //         onTap: () {
-      //           Navigator.pushNamed(context, '/leaderboards');
-      //         },
-      //       ),
-      //     ],
-      //   ),
-      // ),
     );
   }
 }
@@ -194,32 +169,46 @@ class Login extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('Log In'),
-        ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Form(
-                  key: _formKey,
-                  child: Column(
-                    children: <Widget>[
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(labelText: 'Email'),
-                        validator: (String? value) {
-                          if (value!.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          return null;
-                        },
-                      ),
-                      TextFormField(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  const Text("Log In",
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                      )),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    child: TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.email)),
+                      validator: (String? value) {
+                        if (value!.isEmpty) {
+                          return 'Please enter some text';
+                        }
+                        return null;
+                      },
+                    ),
+                    width: 350,
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                      child: TextFormField(
                         controller: _passwordController,
-                        decoration:
-                            const InputDecoration(labelText: 'Password'),
+                        decoration: const InputDecoration(
+                            labelText: 'Password',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.vpn_key)),
                         obscureText: true,
                         validator: (String? value) {
                           if (value!.isEmpty) {
@@ -228,19 +217,51 @@ class Login extends StatelessWidget {
                           return null;
                         },
                       ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (_formKey.currentState!.validate()) {
-                            _login();
-                          }
-                        },
-                        child: const Text('Log In'),
-                      ),
-                    ],
-                  )),
-            ],
-          ),
-        ));
+                      width: 350),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                      width: 350,
+                      child: ElevatedButton(
+                          onPressed: () async {
+                            if (_formKey.currentState!.validate()) {
+                              _login();
+
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => const HomePage(
+                                            title: "Home",
+                                            widgetIndex: 1,
+                                          )));
+                            }
+                          },
+                          child: const Text('Log In'),
+                          style: ElevatedButton.styleFrom(
+                            primary: Colors.purple,
+                          ))),
+                  const SizedBox(height: 5),
+                  InkWell(
+                      child: RichText(
+                          text: const TextSpan(
+                              text: "Don't have an account?",
+                              style:
+                                  TextStyle(color: Colors.black, fontSize: 15),
+                              children: <TextSpan>[
+                            TextSpan(
+                                text: ' Sign Up',
+                                style: TextStyle(color: Colors.blue))
+                          ])),
+                      // Text("Don't have an account? Sign Up"),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  SignUp(storage: ProfileStorage()))))
+                ],
+              )),
+        ],
+      ),
+    ));
   }
 }
 
@@ -277,72 +298,96 @@ class SignUp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('Sign Up'),
-        ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            // children: const <Widget>[Text("Hello")]))
-            children: <Widget>[
-              Form(
-                  key: _formKey,
-                  child: Column(
-                    children: <Widget>[
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(labelText: 'Email'),
-                        validator: (String? value) {
-                          if (value!.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          return null;
-                        },
-                      ),
-                      TextFormField(
-                        controller: _usernameController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration:
-                            const InputDecoration(labelText: 'Username'),
-                        validator: (String? value) {
-                          if (value!.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          return null;
-                        },
-                      ),
-                      TextFormField(
-                        controller: _passwordController,
-                        decoration:
-                            const InputDecoration(labelText: 'Password'),
-                        obscureText: true,
-                        validator: (String? value) {
-                          if (value!.isEmpty) {
-                            return 'Please enter some text';
-                          }
-                          return null;
-                        },
-                      ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (_formKey.currentState!.validate()) {
-                            _register();
-                          }
-                        },
-                        child: const Text('Submit'),
-                      ),
-                    ],
-                  ))
-            ],
-          ),
-        ));
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          const Text("Sign Up",
+              style: TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+              )),
+          const SizedBox(height: 10),
+          Form(
+              key: _formKey,
+              child: Column(
+                children: <Widget>[
+                  SizedBox(
+                    child: TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.email)),
+                      validator: (String? value) {
+                        if (value!.isEmpty) {
+                          return 'Please enter some text';
+                        }
+                        return null;
+                      },
+                    ),
+                    width: 350,
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    child: TextFormField(
+                      controller: _usernameController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                          labelText: 'Username',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.account_box)),
+                      validator: (String? value) {
+                        if (value!.isEmpty) {
+                          return 'Please enter some text';
+                        }
+                        return null;
+                      },
+                    ),
+                    width: 350,
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    child: TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(
+                          labelText: 'Password',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.vpn_key)),
+                      obscureText: true,
+                      validator: (String? value) {
+                        if (value!.isEmpty) {
+                          return 'Please enter some text';
+                        }
+                        return null;
+                      },
+                    ),
+                    width: 350,
+                  ),
+                  SizedBox(height: 10),
+                  SizedBox(
+                      child: ElevatedButton(
+                          onPressed: () async {
+                            if (_formKey.currentState!.validate()) {
+                              _register();
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: const Text(
+                            'Submit',
+                          )),
+                      width: 350),
+                ],
+              ))
+        ],
+      ),
+    ));
   }
 }
 
-class AccountPage extends StatelessWidget {
-  AccountPage({Key? key, required this.storage}) : super(key: key);
-  final ProfileStorage storage;
+class AccountPageState extends State<AccountPage> {
+  User? user = _auth.currentUser;
 
   @override
   Widget build(BuildContext context) {
@@ -350,17 +395,29 @@ class AccountPage extends StatelessWidget {
         stream: _auth.authStateChanges(),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            return ElevatedButton(
-              onPressed: () {
-                _auth.signOut();
-              },
-              child: Text("Log Out"),
-            );
+            return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      _auth.signOut();
+                    },
+                    child: const Text("Log Out"),
+                  ),
+                ]);
           } else {
-            return Login(storage: storage);
+            return Login(storage: widget.storage);
           }
         }));
   }
+}
+
+class AccountPage extends StatefulWidget {
+  AccountPage({Key? key, required this.storage}) : super(key: key);
+  final ProfileStorage storage;
+  User? user = _auth.currentUser;
+
+  State<AccountPage> createState() => AccountPageState();
 }
 
 class Leaderboards extends StatefulWidget {
@@ -378,7 +435,6 @@ class _LeaderboardsState extends State<Leaderboards> {
   void initState() {
     super.initState();
     _leaderboard = widget.storage.getLeaderboards();
-    // print(_leaderboard);
   }
 
   @override
@@ -387,48 +443,62 @@ class _LeaderboardsState extends State<Leaderboards> {
         appBar: AppBar(
           title: Text("Leaderboards"),
         ),
-        body: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              FutureBuilder<List<Tuple2<String, int>>>(
-                  future: _leaderboard,
-                  builder: (BuildContext context,
-                      AsyncSnapshot<List<Tuple2<String, int>>> snapshot) {
-                    switch (snapshot.connectionState) {
-                      case ConnectionState.waiting:
-                        return const CircularProgressIndicator();
-                      default:
-                        if (snapshot.hasError) {
-                          return Text('Error: ${snapshot.error}');
-                        } else {
-                          if (snapshot.data != null) {
-                            List<Tuple2<String, int>>? leaderboards =
-                                snapshot.data;
-                            print(leaderboards);
-                            if (leaderboards != null) {
-                              for (var entry in leaderboards) {
-                                // print(entry.runtimeType);
-                                print(entry.item1);
-                              }
-                            }
-                            return ListView.builder(
-                                // itemCount: _lea
-                                shrinkWrap: true,
-                                itemCount: leaderboards?.length,
-                                itemBuilder: (context, index) {
-                                  return Container(
-                                      child: Center(
-                                    child: Text(
-                                        "${leaderboards![index].item1} : ${leaderboards[index].item2} tokens"),
-                                  ));
-                                  // child: Center(child: Text("$index"),)
-                                });
+        body: Column(mainAxisAlignment: MainAxisAlignment.center, children: <
+            Widget>[
+          FutureBuilder<List<Tuple2<String, int>>>(
+              future: _leaderboard,
+              builder: (BuildContext context,
+                  AsyncSnapshot<List<Tuple2<String, int>>> snapshot) {
+                switch (snapshot.connectionState) {
+                  case ConnectionState.waiting:
+                    return const CircularProgressIndicator();
+                  default:
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    } else {
+                      if (snapshot.data != null) {
+                        List<Tuple2<String, int>>? leaderboards = snapshot.data;
+                        print(leaderboards);
+                        if (leaderboards != null) {
+                          for (var entry in leaderboards) {
+                            // print(entry.runtimeType);
+                            print(entry.item1);
                           }
-                          return Text("NO DATA");
                         }
+                        return ListView.builder(
+                            // itemCount: _lea
+                            shrinkWrap: true,
+                            itemCount: leaderboards?.length,
+                            itemBuilder: (context, index) {
+                              return Center(
+                                  child: Card(
+                                      child: Column(
+                                children: [
+                                  ListTile(
+                                    title: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text("${index + 1}."),
+                                        Text("${leaderboards![index].item1}"),
+                                        Text("  "),
+                                        Text("${leaderboards[index].item2}"),
+                                      ],
+                                    ),
+                                    trailing: const Icon(
+                                      Icons.attach_money,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              )));
+                            });
+                      }
+                      return Text("NO DATA");
                     }
-                  }),
-            ]));
+                }
+              }),
+        ]));
   }
 }
 
@@ -441,10 +511,6 @@ class NewWager extends StatefulWidget {
 }
 
 class SoccerMatch extends StatefulWidget {
-  // const HomePage({Key? key, required this.title}) : super(key: key);
-  // final String title;
-  // @override
-  // State<HomePage> createState() => _HomePageState();
   const SoccerMatch(
       {Key? key,
       required this.storage,
@@ -466,7 +532,7 @@ class SoccerMatch extends StatefulWidget {
 
 late Future<int> _userBalance;
 
-enum ChosenTeam { home, away }
+enum ChosenTeam { home, away, tie }
 
 class _SoccerMatchState extends State<SoccerMatch> {
   late bool _validWager;
@@ -487,38 +553,135 @@ class _SoccerMatchState extends State<SoccerMatch> {
     // } else {
     print("WAGER IS VALID");
     widget.storage.saveWager(wager);
-    _simulateMatch(userID, team, wager.betAmount);
     setState(() {
       _userBalance = widget.storage.getUserBalance(userID);
     });
     // }
   }
 
-  void _simulateMatch(String userID, String userTeam, int? amount) {
-    final _teams = [
-      "Real Madrid",
-      "Manchester United",
-      "Borussia Dortmund",
-      "Juventus",
-    ];
-    String _opponent;
-    while (true) {
-      _opponent = (_teams..shuffle()).first;
-      if (_opponent != userTeam) {
-        break;
+  Future<Map<String, double>> _getGameOdds(Wager wager, Match match) async {
+    String apiKey =
+        const String.fromEnvironment("API_KEY", defaultValue: "123");
+    var headers = {
+      "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+      "X-RapidAPI-Key": apiKey
+    };
+    String matchID = match.id.toString();
+
+    var endpoint = "/v3/odds?fixture=$matchID";
+    var request = http.Request(
+        'GET', Uri.parse('https://api-football-v1.p.rapidapi.com/$endpoint'));
+    request.headers.addAll(headers);
+    http.StreamedResponse streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    late Map<String, double> gameOdds;
+
+    if (response.statusCode == 200) {
+      final jsonResponse =
+          convert.jsonDecode(response.body) as Map<String, dynamic>;
+      if (jsonResponse['results'] == 0) {
+        gameOdds = {"homeWin": 100 / 3, "tie": 100 / 3, "awayWin": 100 / 3};
+      } else {
+        final bookmakers = jsonResponse['response'][0]['bookmakers'];
+        var bookmaker = bookmakers[0];
+        var bookmakerOdds = bookmaker['bets'][0]['values'];
+        gameOdds = {
+          "homeWin": double.parse(bookmakerOdds[0]['odd']),
+          "tie": double.parse(bookmakerOdds[1]['odd']),
+          "awayWin": double.parse(bookmakerOdds[2]['odd']),
+        };
       }
     }
-    Random random = Random();
-    final _opponentOdds = random.nextInt(100);
-    final _userOdds = random.nextInt(100);
-    print("USER ODDS: $_userOdds");
-    print("OPPONENT ODDS: $_opponentOdds");
-    if (_opponentOdds > _userOdds) {
-      print("YOU LOST :(");
+    return gameOdds;
+  }
+
+  Future<Map<dynamic, dynamic>> _simulateMatch(
+      String userID, Wager wager, Match match) async {
+    late int possiblePayout;
+    String? userResultPrediction = wager.predictedWinner;
+    print("PREDICTION: $userResultPrediction");
+    Map<String, double> gameOdds = await _getGameOdds(wager, match);
+    double? homeTeamWinOdds = gameOdds['homeWin'];
+    double? awayTeamWinOdds = gameOdds['awayWin'];
+    double? tieOdds = gameOdds['tie'];
+    late Map<String, dynamic> matchResults = {};
+    if (userResultPrediction == match.homeTeamName) {
+      matchResults["possiblePayout"] =
+          (homeTeamWinOdds! * wager.betAmount!.toDouble()).round().toInt();
+    } else if (userResultPrediction == match.awayTeamName) {
+      matchResults["possiblePayout"] =
+          (awayTeamWinOdds! * wager.betAmount!.toDouble()).round().toInt();
     } else {
-      print("YOU WON :)");
+      matchResults["possiblePayout"] =
+          (tieOdds! * wager.betAmount!.toDouble().round()).toInt();
     }
-    widget.storage.updateUserBalance(userID, amount);
+    print(matchResults['possiblePayout'].runtimeType);
+
+    Random random = Random();
+    double? homeWinHeuristic = random.nextInt(100) * awayTeamWinOdds!;
+    double? awayWinHeuristic = random.nextInt(100) * homeTeamWinOdds!;
+    double? tieHeuristic = random.nextInt(100) * tieOdds!;
+    print("HOME TEAM: $homeWinHeuristic");
+    print("AWAY TEAM: $awayWinHeuristic");
+    print("TIE: $tieHeuristic");
+    late int homeTeamGoals;
+    late int awayTeamGoals;
+    if (homeWinHeuristic > awayWinHeuristic &&
+        homeWinHeuristic > tieHeuristic) {
+      while (true) {
+        homeTeamGoals = random.nextInt(5);
+        awayTeamGoals = random.nextInt(5);
+        if (homeTeamGoals > awayTeamGoals) {
+          break;
+        }
+      }
+      if (userResultPrediction == match.homeTeamName) {
+        matchResults["userWonBool"] = true;
+        print("YOU WON");
+      } else {
+        matchResults["userWonBool"] = false;
+      }
+    }
+    // If Away team won
+    else if (awayWinHeuristic > homeWinHeuristic &&
+        awayWinHeuristic > tieHeuristic) {
+      while (true) {
+        homeTeamGoals = random.nextInt(5);
+        awayTeamGoals = random.nextInt(5);
+        if (homeTeamGoals < awayTeamGoals) {
+          break;
+        }
+      }
+      // If User predicted away team win
+      if (userResultPrediction == match.awayTeamName) {
+        print("YOU WON");
+        matchResults["userWonBool"] = true;
+      }
+      // If user did not predict away team win
+      else {
+        matchResults["userWonBool"] = false;
+      }
+    }
+    // If game ended in tie
+    else {
+      if (userResultPrediction == "tie") {
+        matchResults["userWonBool"] = true;
+      } else {
+        matchResults["userWonBool"] = false;
+      }
+      while (true) {
+        homeTeamGoals = random.nextInt(5);
+        awayTeamGoals = random.nextInt(5);
+        if (homeTeamGoals == awayTeamGoals) {
+          break;
+        }
+      }
+    }
+    matchResults['homeTeamGoals'] = homeTeamGoals;
+    matchResults['awayTeamGoals'] = awayTeamGoals;
+    return matchResults;
+
+    // widget.storage.updateUserBalance(userID, wager.betAmount);
   }
 
   void initState() {
@@ -530,118 +693,310 @@ class _SoccerMatchState extends State<SoccerMatch> {
     }
   }
 
+  bool _insufficientFunds = false;
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(title: const Text('Match Details')),
         body: Center(
-            child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-              Text("Home       Away"),
-              Text(
-                  "${widget.matchHomeTeamName} vs. ${widget.matchAwayTeamName}"),
-              Text("${widget.matchDateString}"),
-              Text("${widget.matchID}"),
-              ListTile(
-                title: Text("${widget.matchHomeTeamName}"),
-                leading: Radio<ChosenTeam>(
-                  value: ChosenTeam.home,
-                  groupValue: _team,
-                  onChanged: (ChosenTeam? value) {
-                    setState(() {
-                      _team = value;
-                    });
-                  },
-                ),
-              ),
-              ListTile(
-                title: Text("${widget.matchAwayTeamName}"),
-                leading: Radio<ChosenTeam>(
-                  value: ChosenTeam.away,
-                  groupValue: _team,
-                  onChanged: (ChosenTeam? value) {
-                    setState(() {
-                      _team = value;
-                    });
-                  },
-                ),
-              ),
-              SizedBox(
-                child: TextFormField(
-                  controller: _amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                      labelText: 'Amount',
-                      icon: Icon(Icons.attach_money_sharp)),
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (value) {
-                    if (value!.isEmpty) {
-                      return 'Please enter a token amount';
+            child:
+                Column(mainAxisAlignment: MainAxisAlignment.center, children: <
+                    Widget>[
+          FutureBuilder<int>(
+              future: _userBalance,
+              builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
+                switch (snapshot.connectionState) {
+                  case ConnectionState.waiting:
+                    return const CircularProgressIndicator();
+                  default:
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
                     } else {
-                      print("ALL GOOD");
+                      return Align(
+                          alignment: Alignment.topRight,
+                          child: RichText(
+                              text: TextSpan(children: [
+                            const WidgetSpan(
+                              child: Icon(Icons.attach_money_sharp,
+                                  color: Colors.green),
+                            ),
+                            TextSpan(
+                              text: '${snapshot.data}',
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 25,
+                              ),
+                            )
+                          ])));
                     }
-                    return null;
-                  },
-                ),
-                width: 500.0,
-              ),
-              ElevatedButton(
-                  //   if (_team == ChosenTeam.home) {
-
-                  //     print("${widget.matchHomeTeamName}");
-                  //     print(_amountController.text);
-                  //   } else {
-                  //     print("${widget.matchAwayTeamName}");
-                  //     print(_amountController.text);
-                  //   }
-                  // },
-                  onPressed: () async {
-                    late String selectedTeamName;
-                    if (_team == ChosenTeam.home) {
-                      selectedTeamName = widget.matchHomeTeamName;
-                    } else
-                      selectedTeamName = widget.matchAwayTeamName;
-                    String homeTeamName = widget.matchHomeTeamName;
-                    String awayTeamName = widget.matchAwayTeamName;
-                    int matchID = widget.matchID;
-                    String matchDateString = widget.matchDateString;
-                    DateTime matchDateObj = widget.matchDateObj;
-                    final int amount = int.parse(_amountController.text);
-                    User? user = _auth.currentUser;
-                    final userID = user!.uid;
-                    Match matchObj = Match(matchID, homeTeamName, awayTeamName,
-                        matchDateString, matchDateObj);
-                    Wager wagerObj =
-                        Wager(amount, userID, selectedTeamName, matchID);
-                    _saveWager(wagerObj, matchObj);
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                NewWager(storage: ProfileStorage())));
-                  },
-                  child: Text("Place Wager"))
-            ])));
+                }
+              }),
+          Text("Home       Away"),
+          Text(
+            "${widget.matchHomeTeamName} vs. ${widget.matchAwayTeamName}",
+            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+          ),
+          Text("${widget.matchDateString}"),
+          ListTile(
+            title: Text("${widget.matchHomeTeamName}"),
+            leading: Radio<ChosenTeam>(
+              value: ChosenTeam.home,
+              groupValue: _team,
+              onChanged: (ChosenTeam? value) {
+                setState(() {
+                  _team = value;
+                });
+              },
+            ),
+          ),
+          ListTile(
+            title: Text("Tie"),
+            leading: Radio<ChosenTeam>(
+              value: ChosenTeam.tie,
+              groupValue: _team,
+              onChanged: (ChosenTeam? value) {
+                setState(() {
+                  _team = value;
+                });
+              },
+            ),
+          ),
+          ListTile(
+            title: Text("${widget.matchAwayTeamName}"),
+            leading: Radio<ChosenTeam>(
+              value: ChosenTeam.away,
+              groupValue: _team,
+              onChanged: (ChosenTeam? value) {
+                setState(() {
+                  _team = value;
+                });
+              },
+            ),
+          ),
+          Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  SizedBox(
+                    child: TextFormField(
+                      controller: _amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          labelText: 'Bet Amount',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.attach_money_sharp)
+                          // icon:
+                          //     Icon(Icons.attach_money_sharp, color: Colors.green)),
+                          ),
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (betAmountStr) {
+                        bool good = true;
+                        if (betAmountStr == null || betAmountStr.isEmpty) {
+                          return 'Please enter a token amount';
+                        }
+                        User? user = _auth.currentUser;
+                        final userID = user!.uid;
+                        late int betAmountInt;
+                        late int balance;
+                        widget.storage.getUserBalance(userID).then((balance) {
+                          balance = balance;
+                          betAmountInt = int.parse(betAmountStr);
+                          if (betAmountInt > balance) {
+                            setState(() {
+                              _insufficientFunds = true;
+                              _formKey.currentState!.validate();
+                            });
+                          }
+                        });
+                        if (_insufficientFunds == true) {
+                          return 'Insufficient tokens';
+                        }
+                        return null;
+                      },
+                    ),
+                    width: 300.0,
+                  ),
+                  ElevatedButton(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          late String selectedTeamName;
+                          if (_team == ChosenTeam.home) {
+                            selectedTeamName = widget.matchHomeTeamName;
+                          } else if (_team == ChosenTeam.tie) {
+                            selectedTeamName = "tie";
+                          } else {
+                            selectedTeamName = widget.matchAwayTeamName;
+                          }
+                          String homeTeamName = widget.matchHomeTeamName;
+                          String awayTeamName = widget.matchAwayTeamName;
+                          int matchID = widget.matchID;
+                          String matchDateString = widget.matchDateString;
+                          DateTime matchDateObj = widget.matchDateObj;
+                          final int amount = int.parse(_amountController.text);
+                          User? user = _auth.currentUser;
+                          final userID = user!.uid;
+                          Match matchObj = Match(matchID, homeTeamName,
+                              awayTeamName, matchDateString, matchDateObj);
+                          Wager wagerObj =
+                              Wager(amount, userID, selectedTeamName, matchID);
+                          _saveWager(wagerObj, matchObj);
+                          Map matchResults =
+                              await _simulateMatch(userID, wagerObj, matchObj);
+                          widget.storage.updateUserBalance(
+                              userID, matchResults, wagerObj.betAmount);
+                          // Navigator.pop(context);
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => MatchResult(
+                                      wager: wagerObj,
+                                      match: matchObj,
+                                      matchResults: matchResults,
+                                      storage: widget.storage)));
+                        }
+                      },
+                      child: const Text("Place Wager"))
+                ],
+              ))
+        ])));
   }
+}
+
+class MatchResultState extends State<MatchResult> {
+  @override
+  void initState() {
+    super.initState();
+    final user = _auth.currentUser;
+    final userID = user!.uid;
+    _userBalance = widget.storage.getUserBalance(userID);
+  }
+
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Match Results"),
+        automaticallyImplyLeading: false,
+      ),
+      body: Center(
+          child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FutureBuilder<int>(
+              future: _userBalance,
+              builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
+                switch (snapshot.connectionState) {
+                  case ConnectionState.waiting:
+                    return const CircularProgressIndicator();
+                  default:
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    } else {
+                      return Align(
+                          alignment: Alignment.topRight,
+                          child: RichText(
+                              text: TextSpan(children: [
+                            const WidgetSpan(
+                              child: Icon(Icons.attach_money_sharp,
+                                  color: Colors.green),
+                            ),
+                            TextSpan(
+                              text: '${snapshot.data}',
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 25,
+                              ),
+                            )
+                          ])));
+                    }
+                }
+              }),
+          const Text("Final Score",
+              style: TextStyle(
+                fontSize: 35,
+                fontWeight: FontWeight.bold,
+              )),
+          Text(
+              "${widget.match.homeTeamName} ${widget.matchResults['homeTeamGoals']} - ${widget.matchResults['awayTeamGoals']} ${widget.match.awayTeamName}",
+              style: const TextStyle(
+                fontSize: 20,
+              )),
+          Text(() {
+            if (widget.wager.predictedWinner == widget.match.homeTeamName) {
+              return "You bet on ${widget.match.homeTeamName}";
+            } else if (widget.wager.predictedWinner ==
+                widget.match.awayTeamName) {
+              return "You bet on ${widget.match.awayTeamName}";
+            }
+            return "You bet on a tie";
+          }()),
+
+          Text(() {
+            if (widget.matchResults['userWonBool'] == true) {
+              return "You won!";
+            }
+            return "You Lost :(";
+          }()),
+          ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const HomePage(
+                              title: "Home",
+                              widgetIndex: 1,
+                            )));
+              },
+              child: const Text('Place Another Wager'))
+          // Text("${matchResults['userWonBool']}"),
+        ],
+      )),
+    );
+  }
+}
+
+class MatchResult extends StatefulWidget {
+  const MatchResult({
+    Key? key,
+    required this.wager,
+    required this.match,
+    required this.matchResults,
+    required this.storage,
+  });
+  final storage;
+  final matchResults;
+  final wager;
+  final match;
+  @override
+  State<MatchResult> createState() => MatchResultState();
 }
 
 class _NewWagerState extends State<NewWager> {
   String apiKey = const String.fromEnvironment("API_KEY", defaultValue: "123");
-  Future getGames() async {
+  Future getGames(String league) async {
+    print(league);
     var headers = {
       "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
       "X-RapidAPI-Key": apiKey
     };
     final leagues = {
-      "Premier League": 39,
-      "La Liga": 140,
-      "Serie A": 135,
-      "Bundesliga": 78,
-      "Ligue 1": 61,
+      "Premier League": '39',
+      "La Liga": '140',
+      "Serie A": '135',
+      "Bundesliga": '78',
+      "Ligue 1": '61',
+      "MLS": '253'
     };
+    String seasonYear = '2021';
+    if (league == "MLS") seasonYear = '2022';
 
     final allLeagueGames = [];
+    final String? requestedLeagueID = leagues[league];
 
     // for(int leagueID in leagues.values)
     // var endpoint = "/v3/fixtures?date=2022-04-30&league=$leagueID&season=2021";
@@ -655,7 +1010,7 @@ class _NewWagerState extends State<NewWager> {
         inOneWeekDateTime.toString().replaceAll(" 00:00:00.000", "");
 
     var endpoint =
-        "/v3/fixtures?league=39&season=2021&from=$curDate&to=$inOneWeekDate";
+        "/v3/fixtures?league=$requestedLeagueID&season=$seasonYear&from=$curDate&to=$inOneWeekDate";
     var request = http.Request(
         'GET', Uri.parse('https://api-football-v1.p.rapidapi.com/$endpoint'));
     request.headers.addAll(headers);
@@ -666,6 +1021,7 @@ class _NewWagerState extends State<NewWager> {
       final jsonResponse =
           convert.jsonDecode(response.body) as Map<String, dynamic>;
       final games = jsonResponse['response'];
+      print(games);
       var gamesCleaned = [];
       for (var game in games) {
         var rawGameDate = game['fixture']['date'];
@@ -718,63 +1074,16 @@ class _NewWagerState extends State<NewWager> {
             return Scaffold(
                 appBar: AppBar(
                   title: const Text("Place Wager"),
+                  automaticallyImplyLeading: false,
                 ),
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                body: Stack(children: <Widget>[
+                  Center(
+                      child: Column(
                     children: <Widget>[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FutureBuilder<int>(
-                            future: _userBalance,
-                            builder: (BuildContext context,
-                                AsyncSnapshot<int> snapshot) {
-                              switch (snapshot.connectionState) {
-                                case ConnectionState.waiting:
-                                  return const CircularProgressIndicator();
-                                default:
-                                  if (snapshot.hasError) {
-                                    return Text('Error: ${snapshot.error}');
-                                  } else {
-                                    return Text(
-                                      'Balance: ${snapshot.data}',
-                                      style: TextStyle(fontSize: 20),
-                                    );
-                                  }
-                              }
-                            }),
-                      ),
-                      Align(
-                          alignment: Alignment.topRight,
-                          child: DropdownButton<String>(
-                            value: dropdownValue,
-                            icon: const Icon(Icons.keyboard_arrow_down_sharp),
-                            elevation: 16,
-                            underline: Container(
-                                height: 2, color: Colors.deepPurpleAccent),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                dropdownValue = newValue!;
-                              });
-                            },
-                            items: <String>[
-                              'Premier League',
-                              'La Liga',
-                              'Serie A',
-                              'Bundesliga',
-                              'Ligue 1'
-                            ].map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                          )),
-                      FutureBuilder<dynamic>(
-                          future: getGames(),
-                          // if(dropdownValue == "Ligue 1") ... return getGames(),
-                          builder:
-                              (BuildContext context, AsyncSnapshot snapshot) {
+                      FutureBuilder<int>(
+                          future: _userBalance,
+                          builder: (BuildContext context,
+                              AsyncSnapshot<int> snapshot) {
                             switch (snapshot.connectionState) {
                               case ConnectionState.waiting:
                                 return const CircularProgressIndicator();
@@ -782,65 +1091,114 @@ class _NewWagerState extends State<NewWager> {
                                 if (snapshot.hasError) {
                                   return Text('Error: ${snapshot.error}');
                                 } else {
-                                  return Expanded(
-                                      child: ListView.builder(
-                                          itemCount: snapshot.data.length,
-                                          itemBuilder: (context, index) {
-                                            return Row(children: <Widget>[
-                                              Expanded(
-                                                  child: Card(
-                                                      child: Column(
-                                                children: [
-                                                  ListTile(
-                                                    title: Text(
-                                                        "${snapshot.data[index]['teams']['home']['name']} vs ${snapshot.data[index]['teams']['away']['name']}"),
-                                                    subtitle: Text(
-                                                        "${snapshot.data[index]['fixture']['dateString']}"),
-                                                    trailing: ElevatedButton(
-                                                        onPressed: () {
-                                                          // _selectedMatchAwayTeamName =
-                                                          //     snapshot.data[
-                                                          //                 index]
-                                                          //             ['teams'][
-                                                          //         'away']['name'];
-                                                          // _selectedMatchHomeTeamName =
-                                                          //     snapshot.data[
-                                                          //                 index]
-                                                          //             ['teams'][
-                                                          //         'away']['name'];
-                                                          Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                  builder:
-                                                                      (context) =>
-                                                                          SoccerMatch(
-                                                                            storage:
-                                                                                ProfileStorage(),
-                                                                            matchID:
-                                                                                snapshot.data[index]['fixture']['id'],
-                                                                            matchHomeTeamName:
-                                                                                snapshot.data[index]['teams']['home']['name'],
-                                                                            matchAwayTeamName:
-                                                                                snapshot.data[index]['teams']['away']['name'],
-                                                                            matchDateString:
-                                                                                snapshot.data[index]['fixture']['dateString'],
-                                                                            matchDateObj:
-                                                                                snapshot.data[index]['fixture']['dateObj'],
-                                                                          )));
-                                                        },
-                                                        child: const Text(
-                                                            "Bet on Match")),
-                                                  ),
-                                                ],
-                                              )))
-                                            ]);
-                                          }));
+                                  return Align(
+                                      alignment: Alignment(-0.8, -0.8),
+                                      child: Container(
+                                          child: RichText(
+                                              text: TextSpan(children: [
+                                        const WidgetSpan(
+                                          child: Icon(Icons.attach_money_sharp,
+                                              color: Colors.green),
+                                        ),
+                                        TextSpan(
+                                          text: '${snapshot.data}',
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 25,
+                                          ),
+                                        )
+                                      ]))));
                                 }
                             }
-                          })
+                          }),
                     ],
-                  ),
-                ));
+                  )),
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Align(
+                            alignment: Alignment.topRight,
+                            child: DropdownButton<String>(
+                              value: dropdownValue,
+                              icon: const Icon(Icons.keyboard_arrow_down_sharp),
+                              elevation: 16,
+                              underline: Container(
+                                  height: 2, color: Colors.deepPurpleAccent),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  dropdownValue = newValue!;
+                                });
+                              },
+                              items: <String>[
+                                'Premier League',
+                                'La Liga',
+                                'Serie A',
+                                'Bundesliga',
+                                'Ligue 1',
+                                'MLS'
+                              ].map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            )),
+                        FutureBuilder<dynamic>(
+                            future: getGames(dropdownValue),
+                            builder:
+                                (BuildContext context, AsyncSnapshot snapshot) {
+                              switch (snapshot.connectionState) {
+                                case ConnectionState.waiting:
+                                  return const CircularProgressIndicator();
+                                default:
+                                  if (snapshot.hasError) {
+                                    return Text('Error: ${snapshot.error}');
+                                  } else {
+                                    return Expanded(
+                                        child: ListView.builder(
+                                            itemCount: snapshot.data.length,
+                                            itemBuilder: (context, index) {
+                                              return Row(children: <Widget>[
+                                                Expanded(
+                                                    child: Card(
+                                                        child: Column(
+                                                  children: [
+                                                    ListTile(
+                                                      title: Text(
+                                                          "${snapshot.data[index]['teams']['home']['name']} vs ${snapshot.data[index]['teams']['away']['name']}"),
+                                                      subtitle: Text(
+                                                          "${snapshot.data[index]['fixture']['dateString']}"),
+                                                      trailing: ElevatedButton(
+                                                          onPressed: () {
+                                                            Navigator.push(
+                                                                context,
+                                                                MaterialPageRoute(
+                                                                    builder:
+                                                                        (context) =>
+                                                                            SoccerMatch(
+                                                                              storage: ProfileStorage(),
+                                                                              matchID: snapshot.data[index]['fixture']['id'],
+                                                                              matchHomeTeamName: snapshot.data[index]['teams']['home']['name'],
+                                                                              matchAwayTeamName: snapshot.data[index]['teams']['away']['name'],
+                                                                              matchDateString: snapshot.data[index]['fixture']['dateString'],
+                                                                              matchDateObj: snapshot.data[index]['fixture']['dateObj'],
+                                                                            )));
+                                                          },
+                                                          child: const Text(
+                                                              "Bet on Match")),
+                                                    ),
+                                                  ],
+                                                )))
+                                              ]);
+                                            }));
+                                  }
+                              }
+                            })
+                      ],
+                    ),
+                  )
+                ]));
           } else {
             return Login(storage: ProfileStorage());
           }

@@ -98,17 +98,38 @@ class ProfileStorage {
     return true;
   }
 
-  Future<bool> updateUserBalance(String userID, int amount) async {
+  Future<String> getUserName(String userID) async {
+    if (!_initialized) {
+      await initializeDefault();
+    }
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    DocumentSnapshot value =
+        await firestore.collection('profiles').doc(userID).get();
+    Map<String, dynamic>? data = (value.data()) as Map<String, dynamic>?;
+    return data!['username'];
+  }
+
+  Future<bool> updateUserBalance(
+      String userID, Map<dynamic, dynamic> matchResults, int amount) async {
     print("Updating balance");
     if (!_initialized) {
       await initializeDefault();
     }
     FirebaseFirestore firestore = FirebaseFirestore.instance;
     DocumentReference userDoc = firestore.collection('profiles').doc(userID);
-    userDoc
-        .update({'tokens': FieldValue.increment(-amount)})
-        .then((value) => print("Tokens updated"))
-        .catchError((error) => print("Failed to update tokens: $error"));
+    if (matchResults['userWonBool'] == true) {
+      print("POSSIBLE PAYOUT");
+      userDoc
+          .update(
+              {'tokens': FieldValue.increment(matchResults['possiblePayout'])})
+          .then((value) => print("Tokens updated"))
+          .catchError((error) => print("Failed to update tokens: $error"));
+    } else {
+      userDoc
+          .update({'tokens': FieldValue.increment(-amount)})
+          .then((value) => print("Tokens updated"))
+          .catchError((error) => print("Failed to update tokens: $error"));
+    }
     print("AFTER");
     return true;
   }
@@ -122,7 +143,9 @@ class ProfileStorage {
     DocumentSnapshot value =
         await firestore.collection('profiles').doc(userID).get();
     Map<String, dynamic>? data = (value.data()) as Map<String, dynamic>?;
+    print("HELLOERll");
     print(data!['tokens']);
+    print("BYE");
     return data['tokens'];
     // return 0;
   }
